@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, XCircle, Settings, RefreshCw } from 'lucide-react';
+import {
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Settings,
+  RefreshCw,
+  Sliders,
+  Lock,
+} from 'lucide-react';
 import { RiskRule, RiskDecision, KillSwitchState } from '../../types/client.ts';
 import { api } from '../../lib/api.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { StatusBadge } from '../common/StatusBadge.tsx';
 
 interface RiskCenterViewProps {
   rules?: RiskRule[];
@@ -47,13 +58,13 @@ export const RiskCenterView: React.FC<RiskCenterViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header & Kill Switch Controller */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div>
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-rose-400" />
-            Risk Management Engine & Emergency Circuit Breakers
+            Institutional Risk Engine & Circuit Breakers
           </h2>
           <p className="text-xs text-slate-400">
             Synchronous pre-trade validation, dynamic exposure ceilings, and platform kill switches
@@ -85,161 +96,141 @@ export const RiskCenterView: React.FC<RiskCenterViewProps> = ({
       {killSwitch?.isActive && (
         <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-rose-400 animate-pulse" />
+            <AlertTriangle className="w-6 h-6 text-rose-400 animate-pulse shrink-0" />
             <div>
               <span className="font-bold text-sm text-rose-300 block">
                 KILL SWITCH ACTIVE — ALL TRADING REJECTED
               </span>
               <span className="text-xs text-rose-200/80 font-mono">
-                Reason: {killSwitch.reason || 'Operator Intervention'} | Triggered At: {killSwitch.triggeredAt}
+                Reason: {killSwitch.reason || 'Operator Intervention'} | Triggered At:{' '}
+                {killSwitch.triggeredAt ? new Date(killSwitch.triggeredAt).toLocaleString() : 'N/A'}
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Pre-Trade Rules Grid */}
-      <div className="bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-semibold text-white uppercase tracking-wider">
-              Enforced Pre-Trade Rule Set ({safeRules.length})
+      {/* Rules Configuration & Real-Time Decision Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Risk Rules List */}
+        <div className="bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+              Enforced Guardrails ({safeRules.length})
             </span>
+            <span className="text-xs text-cyan-400 font-mono">Real-time Gating</span>
           </div>
-          <span className="text-[11px] font-mono text-emerald-400">Zero-Bypass Interceptor</span>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {safeRules.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-xs text-slate-500">
-              No risk rules registered.
-            </div>
-          ) : (
-            safeRules.map((rule) => {
-              const isEditing = editingRuleId === rule.id;
-              return (
-                <div
-                  key={rule.id}
-                  className={`p-4 rounded-xl border space-y-3 transition-colors ${
-                    rule.isEnabled
-                      ? 'bg-[#090d16] border-slate-800/90'
-                      : 'bg-[#090d16]/50 border-slate-900 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="font-bold text-xs text-white block">{rule.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">{rule.type}</span>
-                    </div>
-
-                    <button
-                      onClick={() => handleToggleRule(rule)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+          <div className="space-y-3">
+            {safeRules.map((rule) => (
+              <div
+                key={rule.id}
+                className="p-3.5 bg-[#060912] rounded-xl border border-slate-800/80 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-white font-mono">{rule.name}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
                         rule.isEnabled
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                           : 'bg-slate-800 text-slate-500'
                       }`}
                     >
-                      {rule.isEnabled ? 'ENABLED' : 'DISABLED'}
-                    </button>
+                      {rule.isEnabled ? 'ACTIVE' : 'DISABLED'}
+                    </span>
                   </div>
 
-                  <p className="text-xs text-slate-400 leading-relaxed">{rule.description}</p>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 font-mono text-xs">
-                    <span className="text-slate-500">Threshold:</span>
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={newThreshold}
-                          onChange={(e) => setNewThreshold(Number(e.target.value))}
-                          className="w-20 bg-slate-900 border border-cyan-500 text-white text-xs px-2 py-0.5 rounded"
-                        />
-                        <button
-                          onClick={() => handleUpdateThreshold(rule.id)}
-                          className="px-2 py-0.5 bg-cyan-600 text-white rounded text-[10px] font-bold cursor-pointer"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-bold">
-                          {rule.unit === 'USD' ? formatCurrency(rule.threshold) : (rule.threshold != null ? `${rule.threshold}${rule.unit}` : '0')}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setEditingRuleId(rule.id);
-                            setNewThreshold(rule.threshold);
-                          }}
-                          className="text-slate-500 hover:text-cyan-400 text-[10px] cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => handleToggleRule(rule)}
+                    className="text-[11px] font-mono text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    {rule.isEnabled ? 'Disable' : 'Enable'}
+                  </button>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </div>
 
-      {/* Recent Pre-Trade Risk Decisions Log */}
-      <div className="bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <span className="text-xs font-semibold text-white uppercase tracking-wider">
-            Recent Pre-Trade Decision Audit Trail ({safeDecisions.length})
-          </span>
-          <span className="text-xs text-slate-400 font-mono">Synchronous Interceptor</span>
-        </div>
+                <p className="text-xs text-slate-400 leading-relaxed">{rule.description}</p>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
-                <th className="pb-2">Decision ID</th>
-                <th className="pb-2">Outcome</th>
-                <th className="pb-2">Rule Evaluated</th>
-                <th className="pb-2">Reason / Breach Details</th>
-                <th className="pb-2 text-right">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {safeDecisions.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
-                    No risk evaluations recorded yet.
-                  </td>
-                </tr>
-              ) : (
-                safeDecisions.map((dec) => (
-                  <tr key={dec.id} className="hover:bg-slate-800/30">
-                    <td className="py-2.5 text-slate-400">{dec.id}</td>
-                    <td className="py-2.5">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          dec.decision === 'APPROVED'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                        }`}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs font-mono">
+                  <span className="text-slate-500">
+                    Threshold: {rule.threshold} {rule.type.includes('PERCENT') ? '%' : 'USD'}
+                  </span>
+
+                  {editingRuleId === rule.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        value={newThreshold}
+                        onChange={(e) => setNewThreshold(parseFloat(e.target.value) || 0)}
+                        className="w-16 px-1.5 py-0.5 bg-black border border-cyan-500 rounded text-xs text-white"
+                      />
+                      <button
+                        onClick={() => handleUpdateThreshold(rule.id)}
+                        className="px-2 py-0.5 bg-cyan-600 rounded text-[10px] text-white font-bold cursor-pointer"
                       >
-                        {dec.decision}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-white font-semibold">{dec.ruleName || 'All Rules Passed'}</td>
-                    <td className="py-2.5 text-slate-300">{dec.reason}</td>
-                    <td className="py-2.5 text-right text-slate-500">
-                      {new Date(dec.timestamp).toLocaleTimeString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingRuleId(null)}
+                        className="text-[10px] text-slate-400 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingRuleId(rule.id);
+                        setNewThreshold(rule.threshold);
+                      }}
+                      className="text-[10px] text-cyan-400 hover:underline cursor-pointer"
+                    >
+                      Edit Threshold
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Risk Decisions Audit Trail */}
+        <div className="bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <span className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+              Recent Pre-Trade Validations
+            </span>
+            <span className="text-xs text-slate-400 font-mono">Audit Log</span>
+          </div>
+
+          {safeDecisions.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500 font-mono">
+              No recent order decisions in log.
+            </div>
+          ) : (
+            <div className="space-y-2.5 font-mono text-xs">
+              {safeDecisions.map((dec) => (
+                <div
+                  key={dec.id}
+                  className="p-3 bg-[#060912] rounded-xl border border-slate-800/80 flex items-start justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white">{dec.symbol}</span>
+                      <StatusBadge status={dec.decision} size="sm" />
+                      <span className="text-slate-500 text-[10px]">Order: {dec.orderId}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-300 font-sans">{dec.reason}</p>
+                  </div>
+
+                  <span className="text-[10px] text-slate-500 shrink-0">
+                    {new Date(dec.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

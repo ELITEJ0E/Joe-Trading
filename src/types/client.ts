@@ -50,6 +50,7 @@ export type AppTab =
   | 'JOURNAL'
   | 'STRATEGIES'
   | 'BOTS'
+  | 'ANALYTICS'
   | 'RISK_CENTER'
   | 'BEHAVIOR'
   | 'EXECUTION'

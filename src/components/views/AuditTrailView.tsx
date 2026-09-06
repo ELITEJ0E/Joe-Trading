@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Search, Filter } from 'lucide-react';
 import { AuditLogEntry } from '../../types/client.ts';
+import { EmptyState } from '../common/EmptyState.tsx';
 
 interface AuditTrailViewProps {
   logs?: AuditLogEntry[];
@@ -39,9 +40,9 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ logs = [] }) => 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0d1322] border border-slate-800/90 rounded-2xl p-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div>
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <Shield className="w-5 h-5 text-cyan-400" />
@@ -52,14 +53,14 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ logs = [] }) => 
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <input
               type="text"
               placeholder="Search audit logs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-[#090d16] border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 font-mono w-56"
+              className="bg-[#060912] border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 font-mono w-full sm:w-56"
             />
             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           </div>
@@ -67,7 +68,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ logs = [] }) => 
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="bg-[#090d16] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+            className="bg-[#060912] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
           >
             <option value="ALL">All Actions</option>
             <option value="ORDER_CREATED">Order Created</option>
@@ -80,55 +81,61 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ logs = [] }) => 
       </div>
 
       {/* Logs Table */}
-      <div className="bg-[#0d1322] border border-slate-800/90 rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#090d16] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-              <tr>
-                <th className="p-3.5">Log ID</th>
-                <th className="p-3.5">Timestamp</th>
-                <th className="p-3.5">Action Event</th>
-                <th className="p-3.5">Actor</th>
-                <th className="p-3.5">Message / Correlation</th>
-                <th className="p-3.5">Details Payload</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredLogs.length === 0 ? (
+      {filteredLogs.length === 0 ? (
+        <EmptyState
+          icon={Shield}
+          title="No Compliance Logs Found"
+          description="There are currently no audit records matching your search criteria."
+        />
+      ) : (
+        <div className="bg-[#0b101d] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead className="bg-[#060912] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
-                    No compliance logs recorded.
-                  </td>
+                  <th className="p-3.5">Log ID</th>
+                  <th className="p-3.5">Timestamp</th>
+                  <th className="p-3.5">Action Event</th>
+                  <th className="p-3.5">Actor</th>
+                  <th className="p-3.5">Message / Correlation</th>
+                  <th className="p-3.5">Details Payload</th>
                 </tr>
-              ) : (
-                filteredLogs.map((log) => (
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="p-3.5 text-slate-500">{log.id}</td>
-                    <td className="p-3.5 text-slate-300">
-                      {new Date(log.timestamp).toLocaleDateString()} {new Date(log.timestamp).toLocaleTimeString()}
+                    <td className="p-3.5 text-slate-500 font-bold">{log.id}</td>
+                    <td className="p-3.5 text-slate-400">
+                      {new Date(log.timestamp).toLocaleTimeString()}
                     </td>
                     <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getActionColor(log.action)}`}>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getActionColor(
+                          log.action
+                        )}`}
+                      >
                         {log.action}
                       </span>
                     </td>
-                    <td className="p-3.5 text-slate-300 font-bold">{log.actor}</td>
-                    <td className="p-3.5">
-                      <div className="text-white font-sans">{log.message}</div>
-                      <div className="text-[10px] text-slate-500">{log.correlationId}</div>
+                    <td className="p-3.5 text-white font-bold">{log.actor}</td>
+                    <td className="p-3.5 text-slate-300">
+                      <div>{log.message}</div>
+                      {log.correlationId && (
+                        <div className="text-[10px] text-slate-500">
+                          Corr: {log.correlationId}
+                        </div>
+                      )}
                     </td>
-                    <td className="p-3.5">
-                      <pre className="text-[10px] text-slate-400 max-w-xs truncate bg-[#090d16] p-1 rounded border border-slate-800">
-                        {JSON.stringify(log.details)}
-                      </pre>
+                    <td className="p-3.5 text-slate-400 max-w-xs truncate">
+                      {JSON.stringify(log.details || {})}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

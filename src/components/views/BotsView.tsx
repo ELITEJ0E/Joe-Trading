@@ -10,10 +10,12 @@ import {
   Radio,
   Send,
   Zap,
+  ShieldAlert,
 } from 'lucide-react';
 import { TradingBot, BotStatus } from '../../types/client.ts';
 import { api } from '../../lib/api.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { StatusBadge } from '../common/StatusBadge.tsx';
 
 interface BotsViewProps {
   bots?: TradingBot[];
@@ -68,177 +70,187 @@ export const BotsView: React.FC<BotsViewProps> = ({ bots = [], onRefreshBots = (
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div>
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <Cpu className="w-5 h-5 text-purple-400" />
-            Algorithmic & Robotic Trading Gateway
+            Algorithmic Trading Gateway & Agent Fleet
           </h2>
           <p className="text-xs text-slate-400">
             Isolated execution gateway with heartbeats, automated risk caps, and event ingress
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#090d16] border border-slate-800 text-xs font-mono">
-            <Radio className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-            <span className="text-slate-400">Gateway Status:</span>
-            <span className="text-purple-400 font-bold">ONLINE (v1/bots)</span>
-          </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#060912] border border-slate-800 text-xs font-mono">
+          <Radio className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+          <span className="text-slate-400">Gateway:</span>
+          <span className="text-purple-400 font-bold">ONLINE (/api/v1/bots)</span>
         </div>
       </div>
 
       {safeBots.length === 0 ? (
-        <div className="py-16 text-center text-xs text-slate-500 bg-[#0d1322] rounded-2xl border border-slate-800">
+        <div className="py-16 text-center text-xs text-slate-500 bg-[#0b101d] rounded-2xl border border-slate-800">
           No algorithmic trading bots registered.
         </div>
       ) : (
         /* Bots Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Bots List */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="space-y-3">
+            <div className="text-xs font-bold text-slate-400 uppercase font-mono tracking-wider px-1">
+              Registered Bot Fleet ({safeBots.length})
+            </div>
+
             {safeBots.map((bot) => {
               const isSelected = selectedBot?.id === bot.id;
+              const isProfit = (bot.totalPnL || 0) >= 0;
+
               return (
                 <div
                   key={bot.id}
                   onClick={() => setSelectedBotId(bot.id)}
-                  className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 ${
                     isSelected
-                      ? 'bg-[#10172a] border-purple-500/80 shadow-lg shadow-purple-950/30'
-                      : 'bg-[#0d1322] border-slate-800 hover:border-slate-700'
+                      ? 'bg-purple-950/20 border-purple-500 shadow-md shadow-purple-950/30'
+                      : 'bg-[#0b101d] border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-white">{bot.name}</span>
-                        <span className="text-xs text-slate-400 font-mono">({bot.strategyName})</span>
-                      </div>
-                      <span className="text-[11px] font-mono text-purple-400">
-                        Pairs: {bot.config?.pairs?.join(', ') || 'N/A'} | Interval: {bot.config?.timeframe || '1m'}
+                      <div className="font-bold text-sm text-white font-mono">{bot.name}</div>
+                      <div className="text-[11px] text-slate-400">{bot.strategyName}</div>
+                    </div>
+                    <StatusBadge status={bot.status} size="sm" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 p-2 bg-[#060912] rounded-xl border border-slate-800/80 text-[11px] font-mono">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Realized P&L</span>
+                      <span className={`font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {formatCurrency(bot.totalPnL, 2, true)}
                       </span>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                          bot.status === BotStatus.RUNNING
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : bot.status === BotStatus.PAUSED
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}
-                      >
-                        {bot.status}
-                      </span>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Win Rate</span>
+                      <span className="font-bold text-white">{bot.winRate}%</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Trades</span>
+                      <span className="font-bold text-slate-300">{bot.tradesCount}</span>
                     </div>
                   </div>
 
-                  {/* Performance Strip */}
-                  <div className="grid grid-cols-3 gap-2 bg-[#090d16] p-3 rounded-xl border border-slate-800/80 font-mono text-center mb-3">
-                    <div>
-                      <span className="text-[10px] text-slate-500 block uppercase">Total P&L</span>
-                      <span className="text-xs font-bold text-emerald-400">
-                        {formatCurrency(bot.totalPnL, 0, true)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block uppercase">Win Rate</span>
-                      <span className="text-xs font-bold text-white">{bot.winRate}%</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 block uppercase">Trades Count</span>
-                      <span className="text-xs font-bold text-cyan-400">{bot.tradesCount}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Controls */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
-                    <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Heartbeat: {new Date(bot.lastHeartbeat).toLocaleTimeString()}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      {bot.status === BotStatus.RUNNING ? (
-                        <button
-                          onClick={() => handleStatusChange(bot.id, BotStatus.PAUSED)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 font-mono text-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <Pause className="w-3 h-3" /> Pause
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleStatusChange(bot.id, BotStatus.RUNNING)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-mono text-xs flex items-center gap-1 cursor-pointer"
-                        >
-                          <Play className="w-3 h-3" /> Resume
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleSimulateBotSignal(bot)}
-                        disabled={isSimulating}
-                        className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                      >
-                        <Zap className="w-3 h-3" /> Trigger Signal
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1">
+                    <span>Pairs: {bot.config?.pairs?.join(', ')}</span>
+                    <span>Max Pos: {bot.config?.maxPositions}</span>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Bot Diagnostics & Simulation Log Panel */}
-          <div className="bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
-                <span className="text-xs font-semibold text-white uppercase tracking-wider">
-                  Gateway Telemetry & Logs
-                </span>
-                <span className="text-[10px] font-mono text-cyan-400">Webhook Listener</span>
-              </div>
-
-              {selectedBot ? (
-                <div className="space-y-3 font-mono text-xs">
-                  <div className="p-3 bg-[#090d16] rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Selected Bot</span>
-                    <span className="text-white font-bold text-sm block">{selectedBot.name}</span>
-                    <span className="text-slate-500 text-[10px]">ID: {selectedBot.id}</span>
+          {/* Bot Control Center & Inspection Panel */}
+          {selectedBot && (
+            <div className="lg:col-span-2 bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white font-mono">{selectedBot.name}</h3>
+                    <StatusBadge status={selectedBot.status} size="sm" />
                   </div>
+                  <p className="text-xs text-slate-400 mt-0.5">ID: {selectedBot.id}</p>
+                </div>
 
-                  <div className="p-3 bg-[#090d16] rounded-xl border border-slate-800 space-y-1 text-[11px]">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Parameters</span>
-                    <div className="flex justify-between text-slate-300">
-                      <span>Max Order Size:</span>
-                      <span className="text-white font-bold">{formatCurrency(selectedBot.config?.maxOrderSize ?? 10000)}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>Trailing Stop:</span>
-                      <span className="text-emerald-400 font-bold">{selectedBot.config?.trailingStopPercent || 1.2}%</span>
-                    </div>
-                  </div>
+                {/* Control Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {selectedBot.status !== 'RUNNING' && (
+                    <button
+                      onClick={() => handleStatusChange(selectedBot.id, BotStatus.RUNNING)}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      Start Agent
+                    </button>
+                  )}
 
-                  {simulationLog && (
-                    <div className="p-3 rounded-xl bg-purple-950/20 border border-purple-800/40 text-purple-300 text-[11px] leading-relaxed">
-                      {simulationLog}
-                    </div>
+                  {selectedBot.status === 'RUNNING' && (
+                    <button
+                      onClick={() => handleStatusChange(selectedBot.id, BotStatus.PAUSED)}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Pause className="w-3.5 h-3.5" />
+                      Pause
+                    </button>
+                  )}
+
+                  {selectedBot.status !== 'STOPPED' && (
+                    <button
+                      onClick={() => handleStatusChange(selectedBot.id, BotStatus.STOPPED)}
+                      className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-bold font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      Terminate
+                    </button>
                   )}
                 </div>
-              ) : (
-                <div className="text-center text-xs text-slate-500 py-8">Select a bot to view details</div>
-              )}
-            </div>
+              </div>
 
-            <div className="pt-3 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-              <span>Risk Interceptor Enforced:</span>
-              <span className="text-emerald-400 font-semibold font-mono">100% Pre-Trade Gate</span>
+              {/* Bot Parameters & Performance Specs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                <div className="p-3 bg-[#060912] rounded-xl border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Strategy Archetype</span>
+                  <span className="font-bold text-white">{selectedBot.strategyName}</span>
+                </div>
+                <div className="p-3 bg-[#060912] rounded-xl border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Timeframe</span>
+                  <span className="font-bold text-cyan-400">{selectedBot.config?.timeframe || '5m'}</span>
+                </div>
+                <div className="p-3 bg-[#060912] rounded-xl border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Max Drawdown Cap</span>
+                  <span className="font-bold text-amber-400">
+                    {selectedBot.config?.maxDrawdownPercent || 5}%
+                  </span>
+                </div>
+                <div className="p-3 bg-[#060912] rounded-xl border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Last Heartbeat</span>
+                  <span className="font-bold text-emerald-400">
+                    {new Date(selectedBot.lastHeartbeat).toLocaleTimeString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Signal Ingress Sandbox */}
+              <div className="p-4 bg-[#060912] rounded-2xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-white font-mono">
+                    <Zap className="w-4 h-4 text-purple-400" />
+                    Gateway Signal Simulator & Risk Injection
+                  </div>
+                  <button
+                    onClick={() => handleSimulateBotSignal(selectedBot)}
+                    disabled={isSimulating || selectedBot.status !== 'RUNNING'}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {isSimulating ? 'Injecting...' : 'Emit Signal'}
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Triggers an automated signal payload from this bot into the centralized Risk
+                  Engine to verify pre-trade constraints and lifecycle execution.
+                </p>
+
+                {simulationLog && (
+                  <div className="p-3 bg-black/80 rounded-xl border border-purple-500/30 font-mono text-xs text-purple-300">
+                    {simulationLog}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

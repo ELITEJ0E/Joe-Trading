@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from './components/layout/Header.tsx';
-import { Navigation } from './components/layout/Navigation.tsx';
-import { KillSwitchBanner } from './components/common/KillSwitchBanner.tsx';
+import { AppShell } from './components/layout/AppShell.tsx';
 import { KillSwitchModal } from './components/common/KillSwitchModal.tsx';
-import { OrderModal } from './components/common/OrderModal.tsx';
+import { TradeWizardModal } from './components/trading/TradeWizardModal.tsx';
 import { NewJournalEntryModal } from './components/views/NewJournalEntryModal.tsx';
 import { JournalDetailView } from './components/views/JournalDetailView.tsx';
 
@@ -16,8 +14,7 @@ import { JournalView } from './components/views/JournalView.tsx';
 import { StrategiesView } from './components/views/StrategiesView.tsx';
 import { BotsView } from './components/views/BotsView.tsx';
 import { RiskCenterView } from './components/views/RiskCenterView.tsx';
-import { BehaviorAnalyticsView } from './components/views/BehaviorAnalyticsView.tsx';
-import { ExecutionAnalyticsView } from './components/views/ExecutionAnalyticsView.tsx';
+import { AnalyticsView } from './components/views/AnalyticsView.tsx';
 import { MarketTerminalView } from './components/views/MarketTerminalView.tsx';
 import { AuditTrailView } from './components/views/AuditTrailView.tsx';
 import { DocsView } from './components/views/DocsView.tsx';
@@ -72,12 +69,13 @@ export default function App() {
   const [executionData, setExecutionData] = useState<any>(null);
   const [selectedMarketSymbol, setSelectedMarketSymbol] = useState<string>('BTC/USDT');
 
-  // Modals
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  // Modals & Guided Workflows
+  const [isTradeWizardOpen, setIsTradeWizardOpen] = useState(false);
+  const [wizardDefaultSymbol, setWizardDefaultSymbol] = useState<string>('BTC/USDT');
   const [isKillSwitchModalOpen, setIsKillSwitchModalOpen] = useState(false);
   const [isNewJournalModalOpen, setIsNewJournalModalOpen] = useState(false);
 
-  // Initial Load
+  // Initial Load & Refresh
   const fetchAllData = useCallback(async () => {
     try {
       const [
@@ -112,7 +110,7 @@ export default function App() {
 
       if (accountsRes.accounts?.length) {
         setAccounts(accountsRes.accounts);
-        setActiveAccount(accountsRes.accounts[0]);
+        setActiveAccount((current) => current || accountsRes.accounts[0]);
       }
       if (positionsRes.positions) setPositions(positionsRes.positions);
       if (ordersRes.orders) setOrders(ordersRes.orders);
@@ -243,166 +241,207 @@ export default function App() {
     }
   };
 
+  const handleOpenTradeWizard = (symbol?: string) => {
+    if (symbol) setWizardDefaultSymbol(symbol);
+    setIsTradeWizardOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-[#070b12] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
-      {/* 1. Header Bar */}
-      <Header
-        activeAccount={activeAccount}
-        accounts={accounts}
-        killSwitch={killSwitch}
-        onSwitchAccount={handleSwitchAccount}
-        onOpenKillSwitchModal={() => setIsKillSwitchModalOpen(true)}
-        onOpenOrderModal={() => setIsOrderModalOpen(true)}
-        isConnected={isConnected}
-        lastSyncTime={lastSyncTime}
-      />
+    <AppShell
+      activeTab={activeTab}
+      onSelectTab={(tab) => {
+        setSelectedJournalEntry(null);
+        setActiveTab(tab);
+      }}
+      accounts={accounts}
+      activeAccount={activeAccount}
+      onSwitchAccount={handleSwitchAccount}
+      killSwitch={killSwitch}
+      onOpenKillSwitchModal={() => setIsKillSwitchModalOpen(true)}
+      onOpenTradeModal={handleOpenTradeWizard}
+      quotes={quotes}
+      onSelectSymbol={(sym) => {
+        setSelectedMarketSymbol(sym);
+        setActiveTab('MARKET');
+      }}
+      openPositionsCount={positions.filter((p) => p.isOpen).length}
+      activeBotsCount={bots.filter((b) => b.status === 'RUNNING').length}
+      isConnected={isConnected}
+    >
+      {/* 1. DASHBOARD COMMAND CENTER */}
+      {activeTab === 'DASHBOARD' && (
+        <DashboardView
+          account={activeAccount}
+          activeAccount={activeAccount}
+          metrics={metrics}
+          positions={positions}
+          orders={orders}
+          equityHistory={equityHistory}
+          quotes={quotes}
+          marketQuotes={quotes}
+          bots={bots}
+          recentRiskDecisions={recentDecisions}
+          killSwitch={killSwitch}
+          behaviorData={behaviorData}
+          onSelectSymbol={(sym) => {
+            setSelectedMarketSymbol(sym);
+            setActiveTab('MARKET');
+          }}
+          onClosePosition={handleClosePosition}
+          onNavigateTab={(tab) => {
+            if (tab === 'POSITIONS' || tab === 'positions') setActiveTab('POSITIONS');
+            else if (tab === 'BOTS' || tab === 'bots') setActiveTab('BOTS');
+            else if (tab === 'MARKET' || tab === 'market') setActiveTab('MARKET');
+            else if (tab === 'ORDERS' || tab === 'orders') setActiveTab('ORDERS');
+            else if (tab === 'RISK_CENTER' || tab === 'risk') setActiveTab('RISK_CENTER');
+            else if (tab === 'ANALYTICS' || tab === 'analytics') setActiveTab('ANALYTICS');
+            else if (tab === 'PORTFOLIO' || tab === 'portfolio') setActiveTab('PORTFOLIO');
+          }}
+          onOpenOrderModal={handleOpenTradeWizard}
+          onSelectPosition={() => {
+            setActiveTab('POSITIONS');
+          }}
+        />
+      )}
 
-      {/* 2. Emergency Kill Switch Banner (if active) */}
-      <KillSwitchBanner
-        killSwitch={killSwitch}
-        onDeactivate={handleDeactivateKillSwitch}
-      />
+      {/* 2. PORTFOLIO VIEW */}
+      {activeTab === 'PORTFOLIO' && (
+        <PortfolioView
+          accounts={accounts}
+          activeAccount={activeAccount}
+          metrics={metrics}
+          equityHistory={equityHistory}
+          onSwitchAccount={handleSwitchAccount}
+        />
+      )}
 
-      {/* 3. Navigation Rail */}
-      <Navigation
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setSelectedJournalEntry(null);
-          setActiveTab(tab);
-        }}
-        openPositionsCount={positions.filter((p) => p.isOpen).length}
-        activeBotsCount={bots.filter((b) => b.status === 'RUNNING').length}
-        isKillSwitchActive={killSwitch.isActive}
-      />
+      {/* 3. POSITIONS VIEW */}
+      {activeTab === 'POSITIONS' && (
+        <PositionsView
+          positions={positions}
+          onClosePosition={handleClosePosition}
+          onOpenOrderModal={() => handleOpenTradeWizard()}
+        />
+      )}
 
-      {/* 4. Main Stage Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 pb-20">
-        {activeTab === 'DASHBOARD' && (
-          <DashboardView
-            account={activeAccount}
-            activeAccount={activeAccount}
-            metrics={metrics}
-            positions={positions}
-            orders={orders}
-            equityHistory={equityHistory}
-            quotes={quotes}
-            marketQuotes={quotes}
-            bots={bots}
-            recentRiskDecisions={recentDecisions}
-            onSelectSymbol={(sym) => {
-              setSelectedMarketSymbol(sym);
-              setActiveTab('MARKET');
+      {/* 4. ORDERS & EXECUTION VIEW */}
+      {activeTab === 'ORDERS' && (
+        <OrdersView
+          orders={orders}
+          executions={executions}
+          onCancelOrder={handleCancelOrder}
+          onOpenOrderModal={() => handleOpenTradeWizard()}
+        />
+      )}
+
+      {/* 5. STRUCTURED JOURNAL & COGNITIVE REVIEW */}
+      {activeTab === 'JOURNAL' &&
+        (selectedJournalEntry ? (
+          <JournalDetailView
+            entry={selectedJournalEntry}
+            onBack={() => setSelectedJournalEntry(null)}
+            onUpdateEntry={(updated) => {
+              setSelectedJournalEntry(updated);
+              setJournalEntries((prev) =>
+                prev.map((e) => (e.id === updated.id ? updated : e))
+              );
             }}
-            onClosePosition={handleClosePosition}
-            onNavigateTab={(tab) => {
-              if (tab === 'positions') setActiveTab('POSITIONS');
-              else if (tab === 'bots') setActiveTab('BOTS');
-              else if (tab === 'market') setActiveTab('MARKET');
-              else if (tab === 'orders') setActiveTab('ORDERS');
-            }}
-            onOpenOrderModal={() => setIsOrderModalOpen(true)}
-            onSelectPosition={(pos) => {
-              setActiveTab('POSITIONS');
-            }}
           />
-        )}
-
-        {activeTab === 'PORTFOLIO' && (
-          <PortfolioView
-            accounts={accounts}
-            activeAccount={activeAccount}
-            metrics={metrics}
-            equityHistory={equityHistory}
-            onSwitchAccount={handleSwitchAccount}
+        ) : (
+          <JournalView
+            entries={journalEntries}
+            onSelectEntry={(entry) => setSelectedJournalEntry(entry)}
+            onOpenNewEntryModal={() => setIsNewJournalModalOpen(true)}
           />
-        )}
+        ))}
 
-        {activeTab === 'POSITIONS' && (
-          <PositionsView
-            positions={positions}
-            onClosePosition={handleClosePosition}
-            onOpenOrderModal={() => setIsOrderModalOpen(true)}
-          />
-        )}
+      {/* 6. UNIFIED ANALYTICS SUITE (Performance, Strategies, Execution, Behavior) */}
+      {activeTab === 'ANALYTICS' && (
+        <AnalyticsView
+          metrics={metrics}
+          equityHistory={equityHistory}
+          strategies={strategies}
+          behaviorData={behaviorData}
+          executionData={executionData}
+        />
+      )}
 
-        {activeTab === 'ORDERS' && (
-          <OrdersView
-            orders={orders}
-            executions={executions}
-            onCancelOrder={handleCancelOrder}
-            onOpenOrderModal={() => setIsOrderModalOpen(true)}
-          />
-        )}
+      {/* Direct legacy tabs routed into AnalyticsView sections for backward-compat */}
+      {activeTab === 'STRATEGIES' && (
+        <AnalyticsView
+          metrics={metrics}
+          equityHistory={equityHistory}
+          strategies={strategies}
+          behaviorData={behaviorData}
+          executionData={executionData}
+          initialTab="STRATEGIES"
+        />
+      )}
+      {activeTab === 'EXECUTION' && (
+        <AnalyticsView
+          metrics={metrics}
+          equityHistory={equityHistory}
+          strategies={strategies}
+          behaviorData={behaviorData}
+          executionData={executionData}
+          initialTab="EXECUTION"
+        />
+      )}
+      {activeTab === 'BEHAVIOR' && (
+        <AnalyticsView
+          metrics={metrics}
+          equityHistory={equityHistory}
+          strategies={strategies}
+          behaviorData={behaviorData}
+          executionData={executionData}
+          initialTab="BEHAVIOR"
+        />
+      )}
 
-        {activeTab === 'JOURNAL' && (
-          selectedJournalEntry ? (
-            <JournalDetailView
-              entry={selectedJournalEntry}
-              onBack={() => setSelectedJournalEntry(null)}
-              onUpdateEntry={(updated) => {
-                setSelectedJournalEntry(updated);
-                setJournalEntries((prev) =>
-                  prev.map((e) => (e.id === updated.id ? updated : e))
-                );
-              }}
-            />
-          ) : (
-            <JournalView
-              entries={journalEntries}
-              onSelectEntry={(entry) => setSelectedJournalEntry(entry)}
-              onOpenNewEntryModal={() => setIsNewJournalModalOpen(true)}
-            />
-          )
-        )}
+      {/* 7. BOT FLEET & ALGORITHMIC GATEWAY */}
+      {activeTab === 'BOTS' && (
+        <BotsView bots={bots} onRefreshBots={fetchAllData} />
+      )}
 
-        {activeTab === 'STRATEGIES' && <StrategiesView strategies={strategies} />}
+      {/* 8. RISK CENTER & KILL SWITCH */}
+      {activeTab === 'RISK_CENTER' && (
+        <RiskCenterView
+          rules={riskRules}
+          killSwitch={killSwitch}
+          recentDecisions={recentDecisions}
+          onOpenKillSwitchModal={() => setIsKillSwitchModalOpen(true)}
+          onDeactivateKillSwitch={handleDeactivateKillSwitch}
+          onRefreshRules={fetchAllData}
+        />
+      )}
 
-        {activeTab === 'BOTS' && (
-          <BotsView bots={bots} onRefreshBots={fetchAllData} />
-        )}
+      {/* 9. MARKET TERMINAL */}
+      {activeTab === 'MARKET' && (
+        <MarketTerminalView
+          quotes={quotes}
+          selectedSymbol={selectedMarketSymbol}
+          onSelectSymbol={(sym) => setSelectedMarketSymbol(sym)}
+          onOpenOrderModal={() => handleOpenTradeWizard(selectedMarketSymbol)}
+        />
+      )}
 
-        {activeTab === 'RISK_CENTER' && (
-          <RiskCenterView
-            rules={riskRules}
-            killSwitch={killSwitch}
-            recentDecisions={recentDecisions}
-            onOpenKillSwitchModal={() => setIsKillSwitchModalOpen(true)}
-            onDeactivateKillSwitch={handleDeactivateKillSwitch}
-            onRefreshRules={fetchAllData}
-          />
-        )}
+      {/* 10. AUDIT TRAIL */}
+      {activeTab === 'AUDIT' && <AuditTrailView logs={auditLogs} />}
 
-        {activeTab === 'BEHAVIOR' && (
-          <BehaviorAnalyticsView behaviorData={behaviorData} />
-        )}
+      {/* 11. DOCUMENTATION & SYSTEM ARCHITECTURE */}
+      {activeTab === 'DOCS' && <DocsView />}
 
-        {activeTab === 'EXECUTION' && (
-          <ExecutionAnalyticsView executionData={executionData} />
-        )}
-
-        {activeTab === 'MARKET' && (
-          <MarketTerminalView
-            quotes={quotes}
-            selectedSymbol={selectedMarketSymbol}
-            onSelectSymbol={(sym) => setSelectedMarketSymbol(sym)}
-            onOpenOrderModal={() => setIsOrderModalOpen(true)}
-          />
-        )}
-
-        {activeTab === 'AUDIT' && <AuditTrailView logs={auditLogs} />}
-
-        {activeTab === 'DOCS' && <DocsView />}
-      </main>
-
-      {/* 5. Interactive Modals */}
-      <OrderModal
-        isOpen={isOrderModalOpen}
-        onClose={() => setIsOrderModalOpen(false)}
-        activeAccount={activeAccount}
+      {/* Guided Workflows & Modals */}
+      <TradeWizardModal
+        isOpen={isTradeWizardOpen}
+        onClose={() => setIsTradeWizardOpen(false)}
         quotes={quotes}
         strategies={strategies}
+        activeAccount={activeAccount}
+        killSwitch={killSwitch}
+        defaultSymbol={wizardDefaultSymbol}
         onOrderSuccess={() => {
-          setIsOrderModalOpen(false);
+          setIsTradeWizardOpen(false);
           fetchAllData();
         }}
       />
@@ -423,6 +462,6 @@ export default function App() {
           fetchAllData();
         }}
       />
-    </div>
+    </AppShell>
   );
 }

@@ -11,8 +11,13 @@ import {
   AlertCircle,
   Sparkles,
   ChevronRight,
+  CheckCircle2,
+  Brain,
+  Target,
 } from 'lucide-react';
 import { JournalEntry, EmotionState } from '../../types/client.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
+import { EmptyState } from '../common/EmptyState.tsx';
 
 interface JournalViewProps {
   entries?: JournalEntry[];
@@ -22,7 +27,7 @@ interface JournalViewProps {
 
 export const JournalView: React.FC<JournalViewProps> = ({
   entries = [],
-  onSelectEntry = (_entry?: any) => {},
+  onSelectEntry = (_entry: JournalEntry) => {},
   onOpenNewEntryModal = () => {},
 }) => {
   const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'POST_TRADE' | 'PRE_TRADE'>('ALL');
@@ -54,39 +59,39 @@ export const JournalView: React.FC<JournalViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 1. Header with New Entry Trigger */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0d1322] border border-slate-800/90 rounded-2xl p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div>
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-cyan-400" />
-            Structured Trade Journal & Cognitive Review
+            Decision-First Trade Journal & Cognitive Review
           </h2>
           <p className="text-xs text-slate-400">
-            Systematic pre-trade planning, thesis invalidation, and post-trade AI psychological audits
+            Pre-trade thesis invalidation, confidence scoring, and post-trade psychological audits
           </p>
         </div>
 
         <button
           onClick={onOpenNewEntryModal}
-          className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-cyan-950/40 flex items-center gap-2 cursor-pointer"
+          className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-cyan-950/40 flex items-center gap-2 cursor-pointer self-stretch sm:self-auto justify-center"
         >
           <Plus className="w-4 h-4" />
           Log Trade Thesis
         </button>
       </div>
 
-      {/* 2. Filters & Search */}
+      {/* 2. Filters & Emotion Pills */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-[#0b101d] rounded-xl border border-slate-800">
           {(['ALL', 'PRE_TRADE', 'ACTIVE', 'POST_TRADE'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all cursor-pointer whitespace-nowrap ${
                 filter === f
-                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                  : 'bg-[#0d1322] text-slate-400 border border-slate-800 hover:text-white'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               {f === 'ALL'
@@ -95,20 +100,20 @@ export const JournalView: React.FC<JournalViewProps> = ({
                 ? 'Pre-Trade Plans'
                 : f === 'ACTIVE'
                 ? 'Active Trades'
-                : 'Reviewed'}
+                : 'Reviewed Post-Trade'}
             </button>
           ))}
         </div>
 
-        {/* Emotion Quick Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-mono">Emotion:</span>
+        {/* Emotion Filter Selector */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-mono">
+          <span className="text-slate-500 text-[11px] hidden sm:inline">Emotion:</span>
           <select
             value={emotionFilter}
             onChange={(e) => setEmotionFilter(e.target.value)}
-            className="bg-[#0d1322] border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+            className="bg-[#0b101d] border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 font-mono"
           >
-            <option value="ALL">All States</option>
+            <option value="ALL">All Emotions</option>
             {Object.values(EmotionState).map((em) => (
               <option key={em} value={em}>
                 {em}
@@ -118,99 +123,109 @@ export const JournalView: React.FC<JournalViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Journal Grid Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEntries.length === 0 ? (
-          <div className="col-span-full py-16 text-center text-xs text-slate-500 bg-[#0d1322] rounded-2xl border border-slate-800">
-            No journal entries match the current filter.
-          </div>
-        ) : (
-          filteredEntries.map((entry) => {
-            const hasAi = !!entry.aiAnalysis;
+      {/* 3. Journal Cards List */}
+      {filteredEntries.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="No Journal Entries Found"
+          description="Log your trade setups, thesis invalidation levels, and emotional state before and after market execution."
+          actionLabel="+ Log First Trade Thesis"
+          onAction={onOpenNewEntryModal}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredEntries.map((entry) => {
+            const isProfit = (entry.realizedPnL || 0) >= 0;
             return (
               <div
                 key={entry.id}
                 onClick={() => onSelectEntry(entry)}
-                className="bg-[#0d1322] hover:bg-[#101728] border border-slate-800/90 hover:border-cyan-500/40 rounded-2xl p-5 shadow-sm cursor-pointer transition-all flex flex-col justify-between space-y-4 group"
+                className="bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-slate-700 transition-all cursor-pointer space-y-3.5 group flex flex-col justify-between"
               >
                 <div>
-                  {/* Top Bar: Symbol, Direction & Emotion */}
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white font-mono">{entry.symbol}</span>
+                      <span className="font-bold text-sm text-white font-mono">{entry.symbol}</span>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                          entry.direction === 'LONG'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          entry.tradeType === 'LONG'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                         }`}
                       >
-                        {entry.direction}
+                        {entry.tradeType}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${getEmotionBadge(
+                          entry.emotion
+                        )}`}
+                      >
+                        {entry.emotion}
                       </span>
                     </div>
 
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${getEmotionBadge(
-                        entry.emotion
-                      )}`}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                        entry.status === 'POST_TRADE'
+                          ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+                          : entry.status === 'ACTIVE'
+                          ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700'
+                      }`}
                     >
-                      {entry.emotion}
+                      {entry.status}
                     </span>
                   </div>
 
-                  {/* Setup & Strategy */}
-                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
-                    <span className="font-semibold text-slate-300">{entry.strategy}</span>
-                    <span>•</span>
-                    <span className="text-cyan-400">{entry.setup}</span>
-                  </div>
-
-                  {/* Trading Thesis Snippet */}
-                  <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed bg-[#090d16] p-2.5 rounded-xl border border-slate-800/60 font-sans">
-                    {entry.tradingThesis || 'No written thesis provided.'}
+                  <p className="text-xs text-slate-300 mt-2.5 line-clamp-2 leading-relaxed font-sans">
+                    {entry.setupDescription}
                   </p>
-
-                  {/* Invalidation Highlight */}
-                  {entry.invalidationCriteria && (
-                    <div className="mt-2.5 flex items-start gap-1.5 text-[11px] text-rose-400/90 font-mono">
-                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                      <span className="line-clamp-1">Inv: {entry.invalidationCriteria}</span>
-                    </div>
-                  )}
                 </div>
 
-                {/* Bottom Meta & R:R */}
-                <div className="pt-3 border-t border-slate-800/80 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-500">Planned R:R:</span>
-                    <span className="font-bold text-white">{entry.riskRewardRatio}R</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-500">Confidence:</span>
-                    <span className="font-bold text-cyan-400">{entry.confidenceScore}/10</span>
-                  </div>
-
-                  {/* AI Badge & View Link */}
-                  <div className="flex items-center justify-between pt-1">
-                    {hasAi ? (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-purple-400 font-bold">
-                        <Sparkles className="w-3 h-3" /> AI Reviewed ({entry.aiAnalysis?.disciplineScore}/100)
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 p-2.5 bg-[#060912] rounded-xl border border-slate-800/80 text-[11px] font-mono">
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Planned Entry</span>
+                      <span className="font-bold text-white">
+                        {formatCurrency(entry.plannedEntry)}
                       </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 font-mono">Pending AI Audit</span>
-                    )}
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Invalidation (SL)</span>
+                      <span className="font-bold text-rose-400">
+                        {formatCurrency(entry.invalidationLevel)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Target (TP)</span>
+                      <span className="font-bold text-emerald-400">
+                        {formatCurrency(entry.plannedTarget)}
+                      </span>
+                    </div>
+                  </div>
 
-                    <span className="text-xs text-cyan-400 font-medium flex items-center group-hover:translate-x-0.5 transition-transform">
-                      Review <ChevronRight className="w-3.5 h-3.5" />
-                    </span>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs font-mono">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <span>Conviction:</span>
+                      <span className="text-cyan-400 font-bold">{entry.confidenceScore}/10</span>
+                    </div>
+
+                    {entry.realizedPnL !== undefined ? (
+                      <div className={`font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isProfit ? '+' : ''}${entry.realizedPnL.toFixed(2)} ({entry.rMultipleRealized}R)
+                      </div>
+                    ) : (
+                      <div className="text-slate-500 text-[11px] group-hover:text-cyan-400 transition-colors flex items-center gap-1">
+                        View Thesis <ChevronRight className="w-3.5 h-3.5" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 };
