@@ -1,0 +1,6 @@
+{
+  "name": "Trading Intelligence",
+  "description": "Production-grade trading operations and intelligence platform connecting human decisions, structured journaling, real-time portfolio monitoring, algorithmic bots, and risk management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
