@@ -1,332 +1,345 @@
 import React, { useState } from 'react';
 import {
-  FileText,
+  ArrowUpDown,
   CheckCircle2,
   Clock,
   XCircle,
+  AlertCircle,
   Plus,
-  RefreshCw,
-  Zap,
-  Ban,
-  ArrowRight,
+  Search,
+  Filter,
+  Layers,
+  ChevronRight,
 } from 'lucide-react';
-import { Order, Execution, OrderStatus } from '../../types/client.ts';
-import { formatCurrency } from '../../lib/formatters.ts';
+import { Order, Execution, UnifiedTrade } from '../../types/client.ts';
+import { formatCurrency, formatNumber } from '../../lib/formatters.ts';
 import { StatusBadge } from '../common/StatusBadge.tsx';
+import { TradeLifecycle } from '../trading/TradeLifecycle.tsx';
 import { EmptyState } from '../common/EmptyState.tsx';
+import { cn } from '../../lib/utils.ts';
 
 interface OrdersViewProps {
   orders?: Order[];
   executions?: Execution[];
-  onCancelOrder?: (id: string) => void;
+  unifiedTrades?: UnifiedTrade[];
+  onCancelOrder?: (orderId: string) => void;
   onOpenOrderModal?: () => void;
+  onSelectTrade?: (trade: UnifiedTrade) => void;
 }
 
 export const OrdersView: React.FC<OrdersViewProps> = ({
   orders = [],
   executions = [],
+  unifiedTrades = [],
   onCancelOrder = (_id: string) => {},
   onOpenOrderModal = () => {},
+  onSelectTrade = (_t: UnifiedTrade) => {},
 }) => {
-  const [tab, setTab] = useState<'ORDERS' | 'EXECUTIONS'>('ORDERS');
-  const [orderFilter, setOrderFilter] = useState<'ALL' | 'OPEN' | 'FILLED' | 'INACTIVE'>('ALL');
+  const [activeTab, setActiveTab] = useState<'OPEN' | 'HISTORY' | 'EXECUTIONS'>('OPEN');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const safeOrders = orders || [];
   const safeExecutions = executions || [];
+  const safeTrades = unifiedTrades || [];
 
-  const filteredOrders = safeOrders.filter((o) => {
-    if (orderFilter === 'ALL') return true;
-    if (orderFilter === 'OPEN') return o.status === 'SUBMITTED' || o.status === 'OPEN' || o.status === 'PENDING';
-    if (orderFilter === 'FILLED') return o.status === 'FILLED' || o.status === 'PARTIAL';
-    if (orderFilter === 'INACTIVE') return o.status === 'CANCELLED' || o.status === 'REJECTED';
-    return true;
-  });
+  const openOrders = safeOrders.filter((o) => ['OPEN', 'PENDING', 'SUBMITTED', 'PARTIAL'].includes(o.status));
+  const orderHistory = safeOrders.filter((o) => ['FILLED', 'CANCELLED', 'REJECTED'].includes(o.status));
 
-  const stages = [
-    { num: '1', label: 'IDEA', desc: 'Screening' },
-    { num: '2', label: 'THESIS', desc: 'Invalidation' },
-    { num: '3', label: 'PLANNED', desc: 'Risk Check' },
-    { num: '4', label: 'SUBMITTED', desc: 'OMS Gateway' },
-    { num: '5', label: 'FILLED', desc: 'Broker Route' },
-    { num: '6', label: 'POSITION', desc: 'Live Exposure' },
-    { num: '7', label: 'CLOSED', desc: 'Realized PnL' },
-    { num: '8', label: 'REVIEWED', desc: 'Psych Audit' },
-  ];
+  const filteredList =
+    activeTab === 'OPEN'
+      ? openOrders.filter((o) => o.symbol.toLowerCase().includes(searchTerm.toLowerCase()))
+      : activeTab === 'HISTORY'
+      ? orderHistory.filter((o) => o.symbol.toLowerCase().includes(searchTerm.toLowerCase()))
+      : safeExecutions.filter((e) => e.symbol.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="space-y-5">
-      {/* 1. Trade Lifecycle State Machine Visualizer */}
-      <div className="bg-[#0b101d] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-white uppercase font-mono tracking-wider flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-cyan-400" />
-              Order Management System & State Machine
-            </h3>
-            <p className="text-xs text-slate-400">
-              Deterministic 8-stage trade progression pipeline with pre-trade risk gating
-            </p>
-          </div>
+      {/* 1. Header & Quick Trigger */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#0c1220] border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+            <ArrowUpDown className="w-5 h-5 text-cyan-400" />
+            Order Management System (OMS) & Executions
+          </h2>
+          <p className="text-xs text-slate-400">
+            Real-time FIX order lifecycle, working limit queue, execution microstructure, and latency metrics
+          </p>
+        </div>
+
+        <button
+          onClick={onOpenOrderModal}
+          className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-cyan-950/40 flex items-center gap-2 cursor-pointer self-stretch sm:self-auto justify-center"
+        >
+          <Plus className="w-4 h-4" />
+          + Place New Order
+        </button>
+      </div>
+
+      {/* 2. Sub-tab Filter Bar & Search */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-[#0c1220] rounded-xl border border-slate-800 overflow-x-auto">
           <button
-            onClick={onOpenOrderModal}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-cyan-950/40 flex items-center gap-1.5 cursor-pointer self-stretch sm:self-auto justify-center"
+            onClick={() => setActiveTab('OPEN')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all cursor-pointer whitespace-nowrap',
+              activeTab === 'OPEN'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                : 'text-slate-400 hover:text-white'
+            )}
           >
-            <Plus className="w-3.5 h-3.5" />
-            New Order
+            Working Orders ({openOrders.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('HISTORY')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all cursor-pointer whitespace-nowrap',
+              activeTab === 'HISTORY'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                : 'text-slate-400 hover:text-white'
+            )}
+          >
+            Order History ({orderHistory.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('EXECUTIONS')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all cursor-pointer whitespace-nowrap',
+              activeTab === 'EXECUTIONS'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                : 'text-slate-400 hover:text-white'
+            )}
+          >
+            Fill Executions ({safeExecutions.length})
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1">
-          {stages.map((st) => (
-            <div
-              key={st.label}
-              className="p-2.5 bg-[#060912] border border-slate-800/80 rounded-xl relative overflow-hidden"
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-[10px] font-bold flex items-center justify-center">
-                  {st.num}
-                </span>
-                <span className="text-[11px] font-bold font-mono text-white">{st.label}</span>
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 truncate">{st.desc}</div>
-              <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-cyan-500 rounded-full w-full opacity-60" />
-              </div>
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search symbol..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 bg-[#0c1220] border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+          />
+        </div>
+      </div>
+
+      {/* 3. Main Data Container */}
+      {filteredList.length === 0 ? (
+        <EmptyState
+          icon={ArrowUpDown}
+          title={
+            activeTab === 'OPEN'
+              ? 'No Working Orders'
+              : activeTab === 'HISTORY'
+              ? 'No Past Orders'
+              : 'No Executions Recorded'
+          }
+          description="Your orders and execution fills will appear here in real-time."
+          actionLabel="+ Place New Order"
+          onAction={onOpenOrderModal}
+        />
+      ) : activeTab === 'EXECUTIONS' ? (
+        /* Executions Table */
+        <div className="bg-[#0c1220] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="bg-[#080d19] text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+                  <th className="p-4 font-bold">Execution ID / Time</th>
+                  <th className="p-4 font-bold">Symbol / Side</th>
+                  <th className="p-4 font-bold">Fill Quantity</th>
+                  <th className="p-4 font-bold">Fill Price</th>
+                  <th className="p-4 font-bold">Total Value</th>
+                  <th className="p-4 font-bold">Venue</th>
+                  <th className="p-4 font-bold text-right">Fee</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {(filteredList as Execution[]).map((exec) => (
+                  <tr key={exec.id} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold text-white">{exec.id}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {new Date(exec.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-sm">{exec.symbol}</span>
+                        <StatusBadge status={exec.side} size="sm" />
+                      </div>
+                    </td>
+                    <td className="p-4 text-slate-200">{exec.quantity}</td>
+                    <td className="p-4 text-white font-bold">{formatCurrency(exec.price)}</td>
+                    <td className="p-4 text-slate-300">{formatCurrency(exec.quantity * exec.price)}</td>
+                    <td className="p-4">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
+                        {(exec as any).venue || exec.brokerExecutionId || 'FIX Direct'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right text-slate-400">
+                      {formatCurrency(exec.fee || 1.25)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* Orders Table & Mobile Cards */
+        <div className="space-y-3">
+          {/* Desktop Table */}
+          <div className="hidden lg:block bg-[#0c1220] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="bg-[#080d19] text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+                    <th className="p-4 font-bold">Order ID / Time</th>
+                    <th className="p-4 font-bold">Symbol / Side</th>
+                    <th className="p-4 font-bold">Type</th>
+                    <th className="p-4 font-bold">Size / Filled</th>
+                    <th className="p-4 font-bold">Limit Price</th>
+                    <th className="p-4 font-bold">Status</th>
+                    <th className="p-4 font-bold">Lifecycle State</th>
+                    <th className="p-4 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {(filteredList as Order[]).map((order) => {
+                    const matchingTrade = safeTrades.find((t) => t.orders.some((o) => o.id === order.id) || t.symbol === order.symbol);
+
+                    return (
+                      <tr
+                        key={order.id}
+                        className="hover:bg-slate-800/30 transition-colors group cursor-pointer"
+                        onClick={() => matchingTrade && onSelectTrade(matchingTrade)}
+                      >
+                        <td className="p-4">
+                          <div className="font-bold text-white">{order.id}</div>
+                          <div className="text-[10px] text-slate-500">
+                            {new Date(order.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm">{order.symbol}</span>
+                            <StatusBadge status={order.side} size="sm" />
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-300">{order.type}</td>
+                        <td className="p-4">
+                          <span className="text-white font-bold">{order.filledQuantity || 0}</span>
+                          <span className="text-slate-500"> / {order.quantity}</span>
+                        </td>
+                        <td className="p-4 text-white font-bold">
+                          {order.limitPrice ? formatCurrency(order.limitPrice) : 'MARKET'}
+                        </td>
+                        <td className="p-4">
+                          <StatusBadge status={order.status} size="sm" />
+                        </td>
+                        <td className="p-4">
+                          {matchingTrade ? (
+                            <TradeLifecycle trade={matchingTrade} compact />
+                          ) : (
+                            <span className="text-slate-500">—</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right">
+                          {['OPEN', 'PENDING', 'SUBMITTED', 'PARTIAL'].includes(order.status) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCancelOrder(order.id);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-mono border border-rose-800/50 transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. Sub-Tabs (Orders vs Executions) & Filter Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 p-1 bg-[#0b101d] rounded-xl border border-slate-800">
-          <button
-            onClick={() => setTab('ORDERS')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
-              tab === 'ORDERS'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Orders History ({safeOrders.length})
-          </button>
-          <button
-            onClick={() => setTab('EXECUTIONS')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
-              tab === 'EXECUTIONS'
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Execution Fills ({safeExecutions.length})
-          </button>
-        </div>
-
-        {tab === 'ORDERS' && (
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
-            {(['ALL', 'OPEN', 'FILLED', 'INACTIVE'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setOrderFilter(f)}
-                className={`px-3 py-1 rounded-lg text-[11px] font-mono font-medium transition-colors cursor-pointer ${
-                  orderFilter === f
-                    ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 font-bold'
-                    : 'bg-[#0b101d] text-slate-400 border border-slate-800 hover:text-white'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
           </div>
-        )}
-      </div>
 
-      {/* 3. Orders Display (Desktop Table + Mobile Stacked Cards) */}
-      {tab === 'ORDERS' && (
-        <>
-          {filteredOrders.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No Orders Found"
-              description="There are currently no orders in the active filter selection."
-              actionLabel="+ Place New Order"
-              onAction={onOpenOrderModal}
-            />
-          ) : (
-            <>
-              {/* Mobile Card Stack */}
-              <div className="grid grid-cols-1 gap-3 md:hidden">
-                {filteredOrders.map((ord) => {
-                  const isOpen = ord.status === 'SUBMITTED' || ord.status === 'OPEN';
-                  return (
-                    <div
-                      key={ord.id}
-                      className="bg-[#0b101d] border border-slate-800 rounded-2xl p-4 space-y-2.5 font-mono text-xs shadow-sm"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">{ord.symbol}</span>
-                          <StatusBadge status={ord.side} size="sm" showIcon={false} />
-                        </div>
-                        <StatusBadge status={ord.status} size="sm" />
-                      </div>
+          {/* Mobile Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:hidden">
+            {(filteredList as Order[]).map((order) => {
+              const matchingTrade = safeTrades.find((t) => t.orders.some((o) => o.id === order.id) || t.symbol === order.symbol);
 
-                      <div className="grid grid-cols-2 gap-2 p-2.5 bg-[#060912] rounded-xl border border-slate-800/80 text-[11px]">
-                        <div>
-                          <span className="text-slate-500 block text-[10px]">Type / Price</span>
-                          <span className="font-bold text-white">
-                            {ord.type} {ord.limitPrice ? `@ $${ord.limitPrice}` : '@ MKT'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[10px]">Qty / Filled</span>
-                          <span className="font-bold text-slate-300">
-                            {ord.filledQuantity || 0} / {ord.quantity}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[10px]">Origin</span>
-                          <span className="text-slate-400">{ord.source || 'MANUAL'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 block text-[10px]">Order ID</span>
-                          <span className="text-slate-400 truncate block">{ord.id}</span>
-                        </div>
-                      </div>
-
-                      {isOpen && (
-                        <div className="flex justify-end pt-1">
-                          <button
-                            onClick={() => onCancelOrder(ord.id)}
-                            className="px-3 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900 text-rose-300 border border-rose-800/50 text-xs font-bold cursor-pointer"
-                          >
-                            Cancel Order
-                          </button>
-                        </div>
-                      )}
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => matchingTrade && onSelectTrade(matchingTrade)}
+                  className="p-4 rounded-2xl bg-[#0c1220] border border-slate-800 hover:border-slate-700 transition-all space-y-3 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-sm font-mono">{order.symbol}</span>
+                      <StatusBadge status={order.side} size="sm" />
                     </div>
-                  );
-                })}
-              </div>
+                    <StatusBadge status={order.status} size="sm" />
+                  </div>
 
-              {/* Desktop Table */}
-              <div className="hidden md:block bg-[#0b101d] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-[#060912] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                      <tr>
-                        <th className="p-3.5">Order ID</th>
-                        <th className="p-3.5">Symbol</th>
-                        <th className="p-3.5">Side</th>
-                        <th className="p-3.5">Type</th>
-                        <th className="p-3.5">Qty / Filled</th>
-                        <th className="p-3.5">Limit / Price</th>
-                        <th className="p-3.5">Status</th>
-                        <th className="p-3.5">Source</th>
-                        <th className="p-3.5 text-right">Submitted</th>
-                        <th className="p-3.5 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {filteredOrders.map((ord) => {
-                        const isOpen = ord.status === 'SUBMITTED' || ord.status === 'OPEN';
-                        return (
-                          <tr key={ord.id} className="hover:bg-slate-800/30 transition-colors">
-                            <td className="p-3.5 text-slate-400 font-bold">{ord.id}</td>
-                            <td className="p-3.5 font-bold text-white">{ord.symbol}</td>
-                            <td className="p-3.5">
-                              <StatusBadge status={ord.side} size="sm" showIcon={false} />
-                            </td>
-                            <td className="p-3.5 text-slate-300">{ord.type}</td>
-                            <td className="p-3.5 text-slate-300 font-bold">
-                              {ord.filledQuantity || 0} / {ord.quantity}
-                            </td>
-                            <td className="p-3.5 text-slate-300">
-                              {ord.limitPrice ? formatCurrency(ord.limitPrice) : 'MARKET'}
-                            </td>
-                            <td className="p-3.5">
-                              <StatusBadge status={ord.status} size="sm" />
-                            </td>
-                            <td className="p-3.5 text-slate-400">{ord.source || 'MANUAL'}</td>
-                            <td className="p-3.5 text-right text-slate-400">
-                              {new Date(ord.createdAt).toLocaleTimeString()}
-                            </td>
-                            <td className="p-3.5 text-right">
-                              {isOpen ? (
-                                <button
-                                  onClick={() => onCancelOrder(ord.id)}
-                                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-950/40 hover:bg-rose-900 text-rose-300 border border-rose-800/40 transition-colors cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                              ) : (
-                                <span className="text-slate-600 text-[10px]">Archived</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-[#080d19] border border-slate-800/80 text-xs font-mono">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Type</span>
+                      <span className="text-white font-bold">{order.type}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Quantity</span>
+                      <span className="text-slate-300">
+                        {order.filledQuantity || 0}/{order.quantity}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Price</span>
+                      <span className="text-white font-bold">
+                        {order.limitPrice ? formatCurrency(order.limitPrice) : 'MKT'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {matchingTrade && (
+                    <div className="pt-1">
+                      <TradeLifecycle trade={matchingTrade} compact />
+                    </div>
+                  )}
+
+                  {['OPEN', 'PENDING', 'SUBMITTED', 'PARTIAL'].includes(order.status) && (
+                    <div className="pt-2 border-t border-slate-800/80 flex justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCancelOrder(order.id);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs font-mono border border-rose-800/50 transition-colors cursor-pointer"
+                      >
+                        Cancel Order
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {/* 4. Execution Fills View */}
-      {tab === 'EXECUTIONS' && (
-        <>
-          {safeExecutions.length === 0 ? (
-            <EmptyState
-              icon={Zap}
-              title="No Executions Recorded"
-              description="No trade executions have filled yet in the current simulation session."
-            />
-          ) : (
-            <div className="bg-[#0b101d] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-[#060912] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="p-3.5">Fill ID</th>
-                      <th className="p-3.5">Order Ref</th>
-                      <th className="p-3.5">Symbol</th>
-                      <th className="p-3.5">Side</th>
-                      <th className="p-3.5">Filled Qty</th>
-                      <th className="p-3.5">Execution Price</th>
-                      <th className="p-3.5">Slippage</th>
-                      <th className="p-3.5">Fee Paid</th>
-                      <th className="p-3.5 text-right">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {safeExecutions.map((ex) => (
-                      <tr key={ex.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="p-3.5 text-cyan-400 font-bold">{ex.id}</td>
-                        <td className="p-3.5 text-slate-400">{ex.orderId}</td>
-                        <td className="p-3.5 font-bold text-white">{ex.symbol}</td>
-                        <td className="p-3.5">
-                          <StatusBadge status={ex.side} size="sm" showIcon={false} />
-                        </td>
-                        <td className="p-3.5 text-slate-200 font-bold">{ex.quantity}</td>
-                        <td className="p-3.5 text-white font-bold">{formatCurrency(ex.price)}</td>
-                        <td className="p-3.5 text-amber-400 font-medium">
-                          {ex.slippageBps ? `${ex.slippageBps.toFixed(2)} bps` : '0.00 bps'}
-                        </td>
-                        <td className="p-3.5 text-slate-400">${ex.fee.toFixed(2)}</td>
-                        <td className="p-3.5 text-right text-slate-400">
-                          {new Date(ex.executedAt).toLocaleTimeString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

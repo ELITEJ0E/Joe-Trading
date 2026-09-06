@@ -31,6 +31,12 @@ export type {
   AuditLogEntry,
 } from '../server/types.ts';
 
+export type {
+  UnifiedTrade,
+  LifecycleStep,
+  LifecycleStepStatus,
+} from '../lib/trade-lifecycle.ts';
+
 export {
   AccountType,
   OrderSide,
@@ -56,4 +62,6 @@ export type AppTab =
   | 'EXECUTION'
   | 'MARKET'
   | 'AUDIT'
+  | 'SETTINGS'
   | 'DOCS';
+

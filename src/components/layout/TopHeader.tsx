@@ -9,10 +9,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 import { TradingAccount, KillSwitchState } from '../../types/client.ts';
 import { RiskIndicator } from '../common/RiskIndicator.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { cn } from '../../lib/utils.ts';
 
 interface TopHeaderProps {
   accounts?: TradingAccount[];
@@ -53,12 +55,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   const safeAccounts = accounts || [];
 
   return (
-    <header className="h-14 bg-[#080d19] border-b border-slate-800/80 sticky top-0 z-30 px-3 sm:px-5 flex items-center justify-between gap-2 select-none backdrop-blur-md">
+    <header className="h-14 bg-[#070a12]/90 border-b border-slate-800/80 sticky top-0 z-30 px-3 sm:px-5 flex items-center justify-between gap-2 select-none backdrop-blur-md">
       {/* Left: Mobile Drawer Trigger + Environment Label */}
       <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={onToggleMobileDrawer}
-          className="md:hidden p-2 -ml-1 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition-colors cursor-pointer"
+          className="md:hidden p-2 -ml-1 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Open Navigation Menu"
         >
           <Menu className="w-5 h-5" />
@@ -73,15 +75,16 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
 
         {/* Environment Status Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400">
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0c1220] border border-slate-800 text-[11px] font-mono text-slate-400">
           <span
-            className={`w-1.5 h-1.5 rounded-full ${
+            className={cn(
+              'w-1.5 h-1.5 rounded-full',
               isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-            }`}
+            )}
           />
           <span className="text-slate-300 font-semibold">SIMULATION</span>
-          <span className="text-slate-400">•</span>
-          <span className="text-cyan-400">SSE</span>
+          <span className="text-slate-500">•</span>
+          <span className="text-cyan-400">FIX/SSE</span>
         </div>
       </div>
 
@@ -91,11 +94,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#0d1424] hover:bg-[#111a2f] border border-slate-700/80 hover:border-cyan-500/50 transition-all text-left cursor-pointer group"
+              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#0c1220] hover:bg-[#111a2e] border border-slate-700/80 hover:border-cyan-500/50 transition-all text-left cursor-pointer group min-h-[40px]"
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate max-w-[120px] sm:max-w-[180px]">
+                  <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate max-w-[110px] sm:max-w-[170px]">
                     {activeAccount.name}
                   </span>
                   <span className="text-[9px] font-mono px-1 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline">
@@ -106,11 +109,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <span className="text-white font-semibold">
                     {formatCurrency(activeAccount.equity)}
                   </span>
-                  <span className="text-slate-400 hidden sm:inline">|</span>
+                  <span className="text-slate-500 hidden sm:inline">|</span>
                   <span
-                    className={`hidden sm:inline font-semibold ${
+                    className={cn(
+                      'hidden sm:inline font-semibold',
                       (activeAccount.unrealizedPnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
+                    )}
                   >
                     {(activeAccount.unrealizedPnL ?? 0) >= 0 ? '+' : ''}
                     {formatCurrency(activeAccount.unrealizedPnL, 2, true)}
@@ -127,11 +131,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   className="fixed inset-0 z-40"
                   onClick={() => setIsAccountDropdownOpen(false)}
                 />
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-72 sm:w-80 bg-[#0d1322] border border-slate-700 rounded-2xl shadow-2xl p-2 z-50 text-xs">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-72 sm:w-80 bg-[#0c1220] border border-slate-700 rounded-2xl shadow-2xl p-2 z-50 text-xs backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold border-b border-slate-800">
                     Switch Trading Account
                   </div>
-                  <div className="py-1 space-y-1 max-h-60 overflow-y-auto">
+                  <div className="py-1 space-y-1 max-h-60 overflow-y-auto scrollbar-none">
                     {safeAccounts.map((acc) => {
                       const isSelected = acc.id === activeAccount.id;
                       return (
@@ -141,11 +145,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                             onSwitchAccount(acc.id);
                             setIsAccountDropdownOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          className={cn(
+                            'w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer',
                             isSelected
                               ? 'bg-cyan-500/15 border border-cyan-500/40 text-white'
                               : 'hover:bg-slate-800/60 text-slate-300 border border-transparent'
-                          }`}
+                          )}
                         >
                           <div>
                             <div className="font-bold text-xs text-white">{acc.name}</div>
@@ -154,9 +159,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                           <div className="text-right font-mono">
                             <div className="font-bold text-white">{formatCurrency(acc.equity)}</div>
                             <div
-                              className={`text-[10px] ${
+                              className={cn(
+                                'text-[10px]',
                                 (acc.unrealizedPnL ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                              }`}
+                              )}
                             >
                               {(acc.unrealizedPnL ?? 0) >= 0 ? '+' : ''}
                               {formatCurrency(acc.unrealizedPnL, 2, true)}
@@ -178,7 +184,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         {/* Global Search / Command Palette Shortcut */}
         <button
           onClick={onOpenSearch}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 transition-colors text-xs font-mono cursor-pointer"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0c1220] hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 transition-colors text-xs font-mono cursor-pointer min-h-[38px]"
           title="Search & Command Palette (Cmd + K)"
         >
           <Search className="w-3.5 h-3.5" />
@@ -189,7 +195,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </button>
 
         {/* UTC Clock (Hidden on small mobile) */}
-        <div className="hidden xl:flex items-center gap-1 text-[11px] font-mono text-slate-400 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
+        <div className="hidden xl:flex items-center gap-1.5 text-[11px] font-mono text-slate-400 px-2.5 py-1 rounded-xl bg-[#0c1220] border border-slate-800">
           <Clock className="w-3 h-3 text-slate-400" />
           <span>{utcTime}</span>
         </div>
@@ -203,8 +209,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
         {/* Primary Action Button: + New Trade */}
         <button
-          onClick={onOpenTradeModal}
-          className="flex items-center gap-1 px-3 sm:px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-cyan-950/40 cursor-pointer active:scale-95 shrink-0"
+          onClick={() => onOpenTradeModal()}
+          className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-md shadow-cyan-950/40 cursor-pointer active:scale-95 shrink-0 min-h-[38px]"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden xs:inline sm:inline">New Trade</span>

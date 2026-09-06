@@ -1,91 +1,84 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  PieChart,
   Layers,
+  ArrowUpDown,
   BookOpen,
-  Menu,
-  PlusCircle,
+  LineChart,
+  Plus,
 } from 'lucide-react';
 import { AppTab } from '../../types/client.ts';
+import { cn } from '../../lib/utils.ts';
 
 interface MobileBottomNavProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
   onOpenTradeModal: () => void;
-  onToggleMobileDrawer: () => void;
-  openPositionsCount: number;
+  positionsCount?: number;
+  openOrdersCount?: number;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   activeTab,
   onSelectTab,
   onOpenTradeModal,
-  onToggleMobileDrawer,
-  openPositionsCount,
+  positionsCount = 0,
+  openOrdersCount = 0,
 }) => {
+  const navItems = [
+    { id: 'DASHBOARD' as AppTab, label: 'Overview', icon: LayoutDashboard },
+    { id: 'POSITIONS' as AppTab, label: 'Positions', icon: Layers, count: positionsCount },
+    { id: 'TRADE_ACTION' as const, label: 'Trade', icon: Plus, isAction: true },
+    { id: 'ORDERS' as AppTab, label: 'Orders', icon: ArrowUpDown, count: openOrdersCount },
+    { id: 'JOURNAL' as AppTab, label: 'Journal', icon: BookOpen },
+  ];
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080d19]/95 backdrop-blur-lg border-t border-slate-800/90 px-2 py-1 select-none">
-      <div className="flex items-center justify-around">
-        {/* 1. Home / Dashboard */}
-        <button
-          onClick={() => onSelectTab('DASHBOARD')}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] rounded-xl transition-all cursor-pointer ${
-            activeTab === 'DASHBOARD' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <LayoutDashboard className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">Home</span>
-        </button>
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#070a12]/95 border-t border-slate-800/90 backdrop-blur-xl z-40 px-2 flex items-center justify-around select-none">
+      {navItems.map((item) => {
+        if (item.isAction) {
+          return (
+            <button
+              key="action-trade"
+              onClick={onOpenTradeModal}
+              className="flex flex-col items-center justify-center -mt-5 group cursor-pointer"
+              aria-label="New Trade"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-950/60 border-2 border-[#070a12] active:scale-90 transition-transform">
+                <Plus className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-mono font-bold text-cyan-400 mt-1">Trade</span>
+            </button>
+          );
+        }
 
-        {/* 2. Portfolio */}
-        <button
-          onClick={() => onSelectTab('PORTFOLIO')}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] rounded-xl transition-all cursor-pointer ${
-            activeTab === 'PORTFOLIO' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <PieChart className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">Portfolio</span>
-        </button>
+        const Icon = item.icon;
+        const isActive = activeTab === item.id;
 
-        {/* 3. Trade Center (Quick Order Button) */}
-        <button
-          onClick={onOpenTradeModal}
-          className="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] rounded-xl text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer group"
-        >
-          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-cyan-950/60 group-active:scale-95 transition-transform">
-            <PlusCircle className="w-4 h-4" />
-          </div>
-          <span className="text-[10px] font-bold text-white mt-0.5">Trade</span>
-        </button>
-
-        {/* 4. Journal */}
-        <button
-          onClick={() => onSelectTab('JOURNAL')}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] rounded-xl transition-all cursor-pointer ${
-            activeTab === 'JOURNAL' ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <BookOpen className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">Journal</span>
-        </button>
-
-        {/* 5. More (Opens Drawer) */}
-        <button
-          onClick={onToggleMobileDrawer}
-          className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] rounded-xl transition-all cursor-pointer ${
-            activeTab !== 'DASHBOARD' &&
-            activeTab !== 'PORTFOLIO' &&
-            activeTab !== 'JOURNAL'
-              ? 'text-cyan-400 font-bold'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Menu className="w-4 h-4 mb-0.5" />
-          <span className="text-[10px]">More</span>
-        </button>
-      </div>
+        return (
+          <button
+            key={item.id}
+            onClick={() => onSelectTab(item.id as AppTab)}
+            className={cn(
+              'flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer relative min-h-[44px]',
+              isActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            <div className="relative">
+              <Icon className={cn('w-5 h-5 transition-transform', isActive && 'scale-110')} />
+              {item.count !== undefined && item.count > 0 && (
+                <span className="absolute -top-1.5 -right-2 px-1 py-0.2 rounded-full bg-cyan-500 text-[8px] font-mono text-black font-bold">
+                  {item.count}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] tracking-tight mt-1">{item.label}</span>
+            {isActive && (
+              <span className="absolute bottom-0.5 w-6 h-0.5 rounded-full bg-cyan-400" />
+            )}
+          </button>
+        );
+      })}
     </nav>
   );
 };

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppShell } from './components/layout/AppShell.tsx';
 import { KillSwitchModal } from './components/common/KillSwitchModal.tsx';
 import { TradeWizardModal } from './components/trading/TradeWizardModal.tsx';
+import { TradeDetailModal } from './components/trading/TradeDetailModal.tsx';
 import { NewJournalEntryModal } from './components/views/NewJournalEntryModal.tsx';
 import { JournalDetailView } from './components/views/JournalDetailView.tsx';
 
@@ -18,8 +19,9 @@ import { AnalyticsView } from './components/views/AnalyticsView.tsx';
 import { MarketTerminalView } from './components/views/MarketTerminalView.tsx';
 import { AuditTrailView } from './components/views/AuditTrailView.tsx';
 import { DocsView } from './components/views/DocsView.tsx';
+import { SettingsView } from './components/views/SettingsView.tsx';
 
-// Types & API
+// Types & API & Lifecycle
 import {
   AppTab,
   TradingAccount,
@@ -35,8 +37,10 @@ import {
   MarketQuote,
   PortfolioMetrics,
   AuditLogEntry,
+  UnifiedTrade,
 } from './types/client.ts';
 import { api } from './lib/api.ts';
+import { buildUnifiedTrades } from './lib/trade-lifecycle.ts';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('DASHBOARD');
@@ -51,6 +55,7 @@ export default function App() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [selectedJournalEntry, setSelectedJournalEntry] = useState<JournalEntry | null>(null);
+  const [selectedTradeForDetail, setSelectedTradeForDetail] = useState<UnifiedTrade | null>(null);
   const [bots, setBots] = useState<TradingBot[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [riskRules, setRiskRules] = useState<RiskRule[]>([]);
@@ -74,6 +79,18 @@ export default function App() {
   const [wizardDefaultSymbol, setWizardDefaultSymbol] = useState<string>('BTC/USDT');
   const [isKillSwitchModalOpen, setIsKillSwitchModalOpen] = useState(false);
   const [isNewJournalModalOpen, setIsNewJournalModalOpen] = useState(false);
+
+  // Reconstruct unified trade lifecycle state
+  const unifiedTrades = useMemo(() => {
+    return buildUnifiedTrades({
+      positions,
+      orders,
+      executions,
+      journalEntries,
+      riskDecisions: recentDecisions,
+      auditLogs,
+    });
+  }, [positions, orders, executions, journalEntries, recentDecisions, auditLogs]);
 
   // Initial Load & Refresh
   const fetchAllData = useCallback(async () => {
@@ -251,6 +268,7 @@ export default function App() {
       activeTab={activeTab}
       onSelectTab={(tab) => {
         setSelectedJournalEntry(null);
+        setSelectedTradeForDetail(null);
         setActiveTab(tab);
       }}
       accounts={accounts}
@@ -283,6 +301,7 @@ export default function App() {
           recentRiskDecisions={recentDecisions}
           killSwitch={killSwitch}
           behaviorData={behaviorData}
+          unifiedTrades={unifiedTrades}
           onSelectSymbol={(sym) => {
             setSelectedMarketSymbol(sym);
             setActiveTab('MARKET');
@@ -296,11 +315,13 @@ export default function App() {
             else if (tab === 'RISK_CENTER' || tab === 'risk') setActiveTab('RISK_CENTER');
             else if (tab === 'ANALYTICS' || tab === 'analytics') setActiveTab('ANALYTICS');
             else if (tab === 'PORTFOLIO' || tab === 'portfolio') setActiveTab('PORTFOLIO');
+            else if (tab === 'SETTINGS' || tab === 'settings') setActiveTab('SETTINGS');
           }}
           onOpenOrderModal={handleOpenTradeWizard}
           onSelectPosition={() => {
             setActiveTab('POSITIONS');
           }}
+          onSelectTrade={(trade) => setSelectedTradeForDetail(trade)}
         />
       )}
 
@@ -319,8 +340,10 @@ export default function App() {
       {activeTab === 'POSITIONS' && (
         <PositionsView
           positions={positions}
+          unifiedTrades={unifiedTrades}
           onClosePosition={handleClosePosition}
           onOpenOrderModal={() => handleOpenTradeWizard()}
+          onSelectTrade={(trade) => setSelectedTradeForDetail(trade)}
         />
       )}
 
@@ -329,8 +352,10 @@ export default function App() {
         <OrdersView
           orders={orders}
           executions={executions}
+          unifiedTrades={unifiedTrades}
           onCancelOrder={handleCancelOrder}
           onOpenOrderModal={() => handleOpenTradeWizard()}
+          onSelectTrade={(trade) => setSelectedTradeForDetail(trade)}
         />
       )}
 
@@ -350,8 +375,10 @@ export default function App() {
         ) : (
           <JournalView
             entries={journalEntries}
+            unifiedTrades={unifiedTrades}
             onSelectEntry={(entry) => setSelectedJournalEntry(entry)}
             onOpenNewEntryModal={() => setIsNewJournalModalOpen(true)}
+            onSelectTrade={(trade) => setSelectedTradeForDetail(trade)}
           />
         ))}
 
@@ -366,7 +393,7 @@ export default function App() {
         />
       )}
 
-      {/* Direct legacy tabs routed into AnalyticsView sections for backward-compat */}
+      {/* Direct tabs routed into AnalyticsView sections for backward-compat */}
       {activeTab === 'STRATEGIES' && (
         <AnalyticsView
           metrics={metrics}
@@ -428,7 +455,16 @@ export default function App() {
       {/* 10. AUDIT TRAIL */}
       {activeTab === 'AUDIT' && <AuditTrailView logs={auditLogs} />}
 
-      {/* 11. DOCUMENTATION & SYSTEM ARCHITECTURE */}
+      {/* 11. SETTINGS & RISK GOVERNANCE */}
+      {activeTab === 'SETTINGS' && (
+        <SettingsView
+          accounts={accounts}
+          activeAccount={activeAccount}
+          onSwitchAccount={handleSwitchAccount}
+        />
+      )}
+
+      {/* 12. DOCUMENTATION & SYSTEM ARCHITECTURE */}
       {activeTab === 'DOCS' && <DocsView />}
 
       {/* Guided Workflows & Modals */}
@@ -443,6 +479,27 @@ export default function App() {
         onOrderSuccess={() => {
           setIsTradeWizardOpen(false);
           fetchAllData();
+        }}
+      />
+
+      <TradeDetailModal
+        isOpen={!!selectedTradeForDetail}
+        trade={selectedTradeForDetail}
+        onClose={() => setSelectedTradeForDetail(null)}
+        onSaveReview={async (tradeId, review, lessons, mistakes) => {
+          if (selectedTradeForDetail?.journalEntry?.id) {
+            try {
+              await api.updateJournalEntry(selectedTradeForDetail.journalEntry.id, {
+                postTradeReview: review,
+                lessonsLearned: lessons,
+                mistakes: mistakes,
+                status: 'POST_TRADE',
+              });
+              fetchAllData();
+            } catch (err) {
+              console.error('Failed to update journal review:', err);
+            }
+          }
         }}
       />
 

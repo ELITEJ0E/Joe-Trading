@@ -1,228 +1,201 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   LayoutDashboard,
-  PieChart,
+  Wallet,
   Layers,
-  FileText,
+  ArrowUpDown,
   BookOpen,
-  TrendingUp,
-  Cpu,
   BarChart3,
+  Cpu,
   ShieldCheck,
-  Shield,
-  BarChart2,
-  FileCode,
+  LineChart,
+  FileText,
+  Settings,
+  HelpCircle,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
+  TrendingUp,
+  Brain,
+  Zap,
 } from 'lucide-react';
-import { AppTab, TradingAccount, KillSwitchState } from '../../types/client.ts';
-import { formatCurrency } from '../../lib/formatters.ts';
+import { AppTab } from '../../types/client.ts';
+import { cn } from '../../lib/utils.ts';
 
 interface DesktopSidebarProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
-  openPositionsCount: number;
-  activeBotsCount: number;
-  killSwitch?: KillSwitchState;
-  activeAccount?: TradingAccount | null;
-  collapsed: boolean;
+  isCollapsed: boolean;
   onToggleCollapse: () => void;
+  positionsCount?: number;
+  openOrdersCount?: number;
+  runningBotsCount?: number;
 }
 
-interface NavGroup {
-  name: string;
-  items: {
-    id: AppTab;
-    label: string;
-    icon: React.FC<any>;
-    badge?: number;
-    badgeColor?: 'cyan' | 'purple' | 'amber' | 'emerald';
-  }[];
+interface NavItem {
+  id: AppTab;
+  label: string;
+  icon: React.FC<any>;
+  badge?: number | string;
+  badgeColor?: string;
+  section: 'CORE' | 'DECISION' | 'SYSTEM';
 }
 
 export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   activeTab,
   onSelectTab,
-  openPositionsCount,
-  activeBotsCount,
-  killSwitch,
-  activeAccount,
-  collapsed,
+  isCollapsed,
   onToggleCollapse,
+  positionsCount = 0,
+  openOrdersCount = 0,
+  runningBotsCount = 0,
 }) => {
-  const groups: NavGroup[] = [
-    {
-      name: 'OVERVIEW',
-      items: [
-        { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
-      ],
-    },
-    {
-      name: 'TRADING',
-      items: [
-        { id: 'PORTFOLIO', label: 'Portfolio', icon: PieChart },
-        { id: 'POSITIONS', label: 'Positions', icon: Layers, badge: openPositionsCount, badgeColor: 'cyan' },
-        { id: 'ORDERS', label: 'Orders', icon: FileText },
-        { id: 'JOURNAL', label: 'Trade Journal', icon: BookOpen },
-      ],
-    },
-    {
-      name: 'AUTOMATION',
-      items: [
-        { id: 'STRATEGIES', label: 'Strategies', icon: TrendingUp },
-        { id: 'BOTS', label: 'Bots', icon: Cpu, badge: activeBotsCount, badgeColor: 'purple' },
-      ],
-    },
-    {
-      name: 'INTELLIGENCE',
-      items: [
-        { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
-      ],
-    },
-    {
-      name: 'CONTROL',
-      items: [
-        { id: 'RISK_CENTER', label: 'Risk Center', icon: ShieldCheck },
-        { id: 'AUDIT', label: 'Audit Trail', icon: Shield },
-      ],
-    },
-    {
-      name: 'MARKETS',
-      items: [
-        { id: 'MARKET', label: 'Market Terminal', icon: BarChart2 },
-      ],
-    },
-    {
-      name: 'SYSTEM',
-      items: [
-        { id: 'DOCS', label: 'Documentation', icon: FileCode },
-      ],
-    },
+  const navItems: NavItem[] = [
+    // Core Execution Group
+    { id: 'DASHBOARD', label: 'Overview', icon: LayoutDashboard, section: 'CORE' },
+    { id: 'POSITIONS', label: 'Positions', icon: Layers, badge: positionsCount || undefined, badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', section: 'CORE' },
+    { id: 'ORDERS', label: 'Orders & OMS', icon: ArrowUpDown, badge: openOrdersCount || undefined, badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', section: 'CORE' },
+    { id: 'PORTFOLIO', label: 'Portfolio & Risk', icon: Wallet, section: 'CORE' },
+    { id: 'MARKET', label: 'Pro Terminal', icon: LineChart, section: 'CORE' },
+
+    // Decision & Intelligence Group
+    { id: 'JOURNAL', label: 'Decision Journal', icon: BookOpen, section: 'DECISION' },
+    { id: 'ANALYTICS', label: 'Analytics Suite', icon: BarChart3, section: 'DECISION' },
+    { id: 'STRATEGIES', label: 'Alpha Strategies', icon: TrendingUp, section: 'DECISION' },
+    { id: 'BEHAVIOR', label: 'Cognitive Review', icon: Brain, section: 'DECISION' },
+
+    // Automation & System Governance
+    { id: 'BOTS', label: 'Bot Fleet', icon: Cpu, badge: runningBotsCount > 0 ? `${runningBotsCount} LIVE` : undefined, badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30', section: 'SYSTEM' },
+    { id: 'RISK_CENTER', label: 'Risk Engine', icon: ShieldCheck, section: 'SYSTEM' },
+    { id: 'AUDIT', label: 'Audit Trail', icon: FileText, section: 'SYSTEM' },
+    { id: 'SETTINGS', label: 'Settings', icon: Settings, section: 'SYSTEM' },
+    { id: 'DOCS', label: 'Architecture', icon: HelpCircle, section: 'SYSTEM' },
   ];
 
-  const isCurrentActive = (id: AppTab) => {
-    if (activeTab === id) return true;
-    if (id === 'ANALYTICS' && (activeTab === 'BEHAVIOR' || activeTab === 'EXECUTION')) return true;
-    return false;
-  };
+  const sections = [
+    { key: 'CORE', label: 'Execution & Markets' },
+    { key: 'DECISION', label: 'Cognitive Alpha' },
+    { key: 'SYSTEM', label: 'System & Governance' },
+  ];
 
   return (
     <aside
-      className={`hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-40 bg-[#080d19] border-r border-slate-800/80 transition-all duration-200 select-none ${
-        collapsed ? 'w-16' : 'w-60'
-      }`}
+      className={cn(
+        'hidden md:flex flex-col bg-[#070a12] border-r border-slate-800/80 transition-all duration-200 select-none z-20 shrink-0 relative',
+        isCollapsed ? 'w-16' : 'w-60'
+      )}
     >
       {/* Brand Header */}
-      <div className="h-14 flex items-center justify-between px-3.5 border-b border-slate-800/80 shrink-0">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-cyan-950/40 shrink-0">
-            TC
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-white text-xs tracking-tight truncate flex items-center gap-1.5">
-                TradeCore
-                <span className="text-[9px] font-mono px-1 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  v2.4
-                </span>
-              </span>
-              <span className="text-[10px] text-slate-500 truncate">Trading Intelligence</span>
+      <div className="h-14 flex items-center justify-between px-3.5 border-b border-slate-800/80">
+        {!isCollapsed ? (
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-cyan-950/50 shrink-0">
+              JT
             </div>
-          )}
-        </div>
+            <div className="truncate">
+              <span className="font-bold text-white text-sm tracking-tight block">
+                TradeCore OS
+              </span>
+              <span className="text-[10px] text-cyan-400 font-mono block -mt-1">
+                Institutional v2.4
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="w-full flex justify-center">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-cyan-950/50">
+              JT
+            </div>
+          </div>
+        )}
 
+        {/* Collapse Sidebar Toggle */}
         <button
           onClick={onToggleCollapse}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer shrink-0"
-          title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition-colors cursor-pointer hidden md:flex items-center justify-center"
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Navigation Links (Grouped) */}
-      <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4 scrollbar-none">
-        {groups.map((group) => (
-          <div key={group.name} className="space-y-1">
-            {!collapsed && (
-              <div className="px-2 text-[10px] font-bold font-mono uppercase tracking-wider text-slate-400">
-                {group.name}
-              </div>
-            )}
+      {/* Navigation Links Grouped by Section */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-4 scrollbar-none">
+        {sections.map((sec) => {
+          const items = navItems.filter((i) => i.section === sec.key);
+          return (
+            <div key={sec.key} className="space-y-1">
+              {!isCollapsed && (
+                <div className="px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  {sec.label}
+                </div>
+              )}
 
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {items.map((item) => {
                 const Icon = item.icon;
-                const active = isCurrentActive(item.id);
-                const isRiskHalt = killSwitch?.isActive && item.id === 'RISK_CENTER';
+                const isActive = activeTab === item.id;
 
                 return (
                   <button
                     key={item.id}
                     onClick={() => onSelectTab(item.id)}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer group relative ${
-                      active
-                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                        : isRiskHalt
-                        ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30 animate-pulse'
-                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 border border-transparent'
-                    }`}
-                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer group relative',
+                      isActive
+                        ? 'bg-cyan-500/15 text-white font-semibold border border-cyan-500/30 shadow-sm shadow-cyan-950/30'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent'
+                    )}
+                    title={isCollapsed ? item.label : undefined}
                   >
                     <Icon
-                      className={`w-4 h-4 shrink-0 transition-colors ${
-                        active
-                          ? 'text-cyan-400'
-                          : isRiskHalt
-                          ? 'text-rose-400'
-                          : 'text-slate-400 group-hover:text-slate-200'
-                      }`}
+                      className={cn(
+                        'w-4 h-4 shrink-0 transition-colors',
+                        isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-300'
+                      )}
                     />
 
-                    {!collapsed && (
+                    {!isCollapsed && (
                       <span className="truncate flex-1 text-left">{item.label}</span>
                     )}
 
-                    {!collapsed && item.badge !== undefined && item.badge > 0 && (
+                    {!isCollapsed && item.badge !== undefined && (
                       <span
-                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold shrink-0 ${
-                          active
-                            ? 'bg-cyan-400 text-slate-950'
-                            : item.badgeColor === 'purple'
-                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                            : 'bg-slate-800 text-slate-300 border border-slate-700'
-                        }`}
+                        className={cn(
+                          'text-[9px] font-mono px-1.5 py-0.5 rounded-md border font-bold',
+                          item.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'
+                        )}
                       >
                         {item.badge}
                       </span>
                     )}
 
-                    {collapsed && item.badge !== undefined && item.badge > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400" />
+                    {/* Active Pip when collapsed */}
+                    {isCollapsed && isActive && (
+                      <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-cyan-400" />
                     )}
                   </button>
                 );
               })}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Account / System Context Footer */}
-      {!collapsed && activeAccount && (
-        <div className="p-3 border-t border-slate-800/80 bg-[#060912]/80 shrink-0">
-          <div className="flex items-center justify-between mb-1 text-[10px] font-mono text-slate-400">
-            <span>ACTIVE CONTEXT</span>
-            <span className="text-emerald-400 font-bold">● LIVE</span>
+      {/* Footer System Health */}
+      <div className="p-2 border-t border-slate-800/80">
+        {!isCollapsed ? (
+          <div className="p-2.5 rounded-xl bg-[#0c1220] border border-slate-800 flex items-center justify-between text-[11px] font-mono">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-slate-300 font-bold">CORE ONLINE</span>
+            </div>
+            <span className="text-slate-400">12ms</span>
           </div>
-          <div className="text-xs font-bold text-white truncate">{activeAccount.name}</div>
-          <div className="flex items-center justify-between mt-1 text-xs font-mono">
-            <span className="text-slate-400">Equity:</span>
-            <span className="text-white font-bold">{formatCurrency(activeAccount.equity)}</span>
+        ) : (
+          <div className="flex justify-center p-1" title="Core Engine Online (12ms)">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 };
